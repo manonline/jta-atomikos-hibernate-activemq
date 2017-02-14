@@ -56,15 +56,21 @@ public class DefaultOrderServiceTest {
     @Before
     public void clearQueue() throws JMSException {
         jmsTemplate.setReceiveTimeout(1000);
+        // 消费掉所有消息，并且不作任何处理；
         while (jmsTemplate.receive() != null) ;
     }
 
 
     @Test
     public void makeOrder() {
+        // 生成一个订单
         orderService.makeOrder(createOrder());
+
+        // 查询数据库看看是不是真的插入了一条记录；
         JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
         assertEquals(1, jdbcTemplate.queryForInt("SELECT COUNT(*) FROM USER_ORDER"));
+
+        // 查询JMS消息，看看是不是和数据库中的值一样；
         String dbItemName = jdbcTemplate.queryForObject("SELECT ITEM_NAME FROM USER_ORDER", String.class);
         String messageItemName = ((Order) jmsTemplate.receiveAndConvert()).getItemName();
         assertEquals(dbItemName, messageItemName);
@@ -72,9 +78,14 @@ public class DefaultOrderServiceTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void failToMakeOrder() {
+        // 不生成订单
         orderService.makeOrder(null);
+
+        // 查询数据库看看是不是并没有插入；
         JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
         assertEquals(0, jdbcTemplate.queryForInt("SELECT COUNT(*) FROM USER_ORDER"));
+
+        // 查询MQ看看是不是没有收到消息
         assertNull(jmsTemplate.receiveAndConvert());
     }
 
