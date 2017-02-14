@@ -1,0 +1,101 @@
+<!-- 定义一个支持XAResource的数据源（一个数据库连接池）-->
+<bean id="dataSource1" class="com.atomikos.jdbc.DataSourceBean">
+    <property name="uniqueResourceName">
+        <value>db1</value>
+    </property>
+    <!-- 内部嵌套一个支持XAResource的数据源(此处为数据库)-->
+    <property name="xaDataSourceClassName">
+        <value>com.MySQL.jdbc.jdbc2.optional.MysqlXADataSource</value>
+    </property>
+    <property name="xaDataSourceProperties">
+        <value>URL=jdbc:mysql://localhost:3306/db1;user=root;password=root</value>
+    </property>
+    <property name="exclusiveConnectionMode">
+        <value>true</value>
+    </property>
+    <property name="connectionPoolSize">
+        <value>3</value>
+    </property>
+    <property name="validatingQuery">
+        <value>SELECT 1</value>
+    </property>
+</bean>
+
+<bean id="sessionFactory1" class="org.springframework.orm.hibernate3.LocalSessionFactoryBean">
+    <!-- 将数据源(连接池) 指定给Hibernate Session Factory, 因为数据源支持XAResource, 所以Session也就支持了XAResource -->
+    <property name="dataSource">
+        <ref bean="dataSource1" />
+    </property>
+    <property name="hibernateProperties">
+        <props>
+            <prop key="hibernate.dialect">org.hibernate.dialect.MySQLDialect</prop>
+        </props>
+    </property>
+    <property name="mappingResources">
+        <list>
+            <value>com/zhiku/vo/User1.hbm.xml</value>
+        </list>
+    </property>
+</bean>
+
+<!-- 此处以同样的方式定义第二个数据源，并赋值给Hierbate -->
+<bean id="dataSource2" class="com.atomikos.jdbc.DataSourceBean">
+    <property name="uniqueResourceName">
+        <value>db2</value>
+    </property>
+    <property name="xaDataSourceClassName">
+        <value>com.mysql.jdbc.jdbc2.optional.MysqlXADataSource</value>
+    </property>
+    <property name="xaDataSourceProperties">
+        <value>URL=jdbc:mysql://localhost:3306/db2;user=root;password=root</value>
+    </property>
+    <property name="exclusiveConnectionMode">
+        <value>true</value>
+    </property>
+    <property name="connectionPoolSize">
+        <value>3</value>
+    </property>
+    <property name="validatingQuery">
+        <value>SELECT 1</value>
+    </property>
+</bean>
+
+<bean id="sessionFactory2" class="org.springframework.orm.hibernate3.LocalSessionFactoryBean">
+    <property name="dataSource">
+        <ref bean="dataSource2" />
+    </property>
+    <property name="hibernateProperties">
+        <props>
+            <prop key="hibernate.dialect">org.hibernate.dialect.MySQLDialect</prop>
+        </props>
+    </property>
+    <property name="mappingResources">
+        <list>
+            <value>com/zhiku/vo/User2.hbm.xml</value>
+        </list>
+    </property>
+</bean>
+
+<!-- 指定HibernateTransactionManager用JTA方式来实现，并注入TransactionManager和UserTransaction实现 -->
+<bean id="hibernateTransactionManager" class="org.springframework.transaction.jta.JtaTransactionManager">
+    <property name="transactionManager">
+        <ref local="atomikosTransactionManager"/>
+    </property>
+    <property name="userTransaction">
+        <ref local="atomikosUserTransaction"/>
+    </property>
+</bean>
+
+<!-- 引入TransactionManager实现类-->
+<bean id="atomikosTransactionManager" class="com.atomikos.icatch.jta.UserTransactionManager"
+      init-method="init" destroy-method="close">
+    <property name="forceShutdown">
+        <value>true</value>
+    </property>
+</bean>
+<!-- 引入UserTransaction实现类-->
+<bean id="atomikosUserTransaction" class="com.atomikos.icatch.jta.UserTransactionImp">
+    <property name="transactionTimeout">
+        <value>300</value>
+    </property>
+</bean>

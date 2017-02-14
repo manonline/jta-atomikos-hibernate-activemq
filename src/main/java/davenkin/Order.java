@@ -11,8 +11,18 @@ import javax.xml.bind.annotation.XmlRootElement;
  * - 应用访问多个数据源
  * - 应用访问多个服务(子应用 -> 数据源)
  * ==========================================================================
- * XA(eXtended Architecture)是X/Open组织提出的采用两阶段提交方式来管理分布式事务的规范。
- * 定义了事务管理器(Transaction Manager)和局部资源管理器(Local Resource Manager)之间的接口。
+ * JTA ava 事务编程接口（JTA：Java Transaction API）和 Java 事务服务 (JTS；Java Transaction Service) 为 J2EE 平台提供了
+ * 分布式事务服务。分布式事务（Distributed Transaction）包括事务管理器（Transaction Manager）和一个或多个支持 XA 协议的资源
+ * 管理器 ( Resource Manager )。我们可以将资源管理器看做任意类型的持久化数据存储；事务管理器承担着所有事务参与单元的协调与控制。
+ * JTA 事务有效的屏蔽了底层事务资源，使应用可以以透明的方式参入到事务处理中；
+ * ===
+ * 面向开发人员的接口为 UserTransaction，开发人员通常只使用此接口实现JTA事务管理，开发人员调用 UserTransaction.begin() 方法时
+ * TransactionManager 会创建一个 Transaction 事务对象（标志着事务的开始）并把此对象通过 ThreadLocale 关联到当前线程上；同样
+ * UserTransaction.commit() 会调用 TransactionManager.commit()， 方法将从当前线程下取出事务对象 Transaction 并把此对象所
+ * 代表的事务提交， 即调用 Transaction.commit()
+ * ===
+ * XA(eXtended Architecture)是X/Open组织提出的采用两阶段提交方式来管理分布式事务的规范。定义了事务管理器(Transaction Manager)
+ * 和局部资源管理器(Local Resource Manager)之间的接口。
  * 1. xa_open,xa_close：建立和关闭与资源管理器的连接。
  * 2. xa_start,xa_end：开始和结束一个本地事务。
  * 3. xa_prepare,xa_commit,xa_rollback：预提交、提交和回滚一个本地事务。
@@ -21,7 +31,8 @@ import javax.xml.bind.annotation.XmlRootElement;
  * 6. ax_reg,ax_unreg；允许一个资源管理器在一个TMS(TRANSACTION MANAGER SERVER)中动态注册或撤消注册。
  * XA性能不理想，无法满足高并发场景。XA目前在商业数据库支持的比较理想，在mysql数据库中支持的不太理想，许多nosql也没有支持XA，这让
  * XA的应用场景变得非常狭隘。
- *
+ * ===
+ * http://www.ibm.com/developerworks/cn/java/j-lo-jta/index.html
  * ==========================================================================
  * 消息事务+最终一致性
  * http://www.cnblogs.com/zengkefu/p/5742617.html
