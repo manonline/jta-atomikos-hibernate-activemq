@@ -14,8 +14,7 @@
         <property name="jmsTemplate" ref="jmsTemplate"/>
     </bean>
     <!-- 数据库数据源 : Hiberante Session-->
-    <bean id="sessionFactory"
-          class="org.springframework.orm.hibernate3.LocalSessionFactoryBean">
+    <bean id="sessionFactory" class="org.springframework.orm.hibernate3.LocalSessionFactoryBean">
         <property name="dataSource">
             <ref bean="dataSource"/>
         </property>
@@ -27,7 +26,6 @@
                 <!-- DataSource必须实现了XAResource接口，不论数据库还是，连接池，
                 所以此处要用AtomikosJTATransactionFactory另外一个是Xapool-->
                 <prop key="hibernate.transaction.factory_class">com.atomikos.icatch.jta.hibernate3.AtomikosJTATransactionFactory</prop>
-
                 <prop key="hibernate.transaction.manager_lookup_class">com.atomikos.icatch.jta.hibernate3.TransactionManagerLookup</prop>
             </props>
         </property>
@@ -41,6 +39,7 @@
     <jdbc:embedded-database id="dataSource">
         <jdbc:script location="classpath:createDB.sql"/>
     </jdbc:embedded-database>
+
     <!-- JMS数据源 -->
     <bean id="jmsTemplate" class="org.springframework.jms.core.JmsTemplate">
         <property name="connectionFactory" ref="amqConnectionFactory"/>
@@ -49,43 +48,58 @@
         <property name="sessionTransacted" value="false" />
         <property name="messageConverter" ref="oxmMessageConverter"/>
     </bean>
-    <bean id="amqConnectionFactory" class="com.atomikos.jms.AtomikosConnectionFactoryBean" init-method="init">
+    <!-- 通过XAResource方式暴露数据源 ：ActiveMQ连接池 -->
+    <bean id="amqConnectionFactory" class="com.atomikos.jms.AtomikosConnectionFactoryBean"
+          init-method="init">
         <property name="uniqueResourceName" value="XAactiveMQ" />
         <property name="xaConnectionFactory" ref="jmsXaConnectionFactory" />
         <property name="poolSize" value="5"/>
     </bean>
+    <!-- 通过XAResource方式暴露数据源 ：ActiveMQ -->
     <bean id="jmsXaConnectionFactory" class="org.apache.activemq.ActiveMQXAConnectionFactory">
         <property name="brokerURL" value="tcp://localhost:61616" />
     </bean>
+    <!-- 业务配置 -->
     <bean id="orderQueue" class="org.apache.activemq.command.ActiveMQQueue">
         <constructor-arg value="ORDER.QUEUE"/>
     </bean>
-    <bean id="oxmMessageConverter"
-          class="org.springframework.jms.support.converter.MarshallingMessageConverter">
+    <!-- 业务配置 -->
+    <bean id="oxmMessageConverter" class="org.springframework.jms.support.converter.MarshallingMessageConverter">
         <property name="marshaller" ref="marshaller"/>
         <property name="unmarshaller" ref="marshaller"/>
     </bean>
+    <!-- 业务配置 -->
     <oxm:jaxb2-marshaller id="marshaller">
         <oxm:class-to-be-bound name="davenkin.Order"/>
     </oxm:jaxb2-marshaller>
-    <!-- 事务定义 : 扫描注解方式 -->
+
+    <!-- 事务定义 : 扫描注解方式，并用JTA实物管理器 -->
     <tx:annotation-driven transaction-manager="jtaTransactionManager" />
-    <!-- 事务管理器 : JTA事务 -->
-    <bean id="jtaTransactionManager" class="org.springframework.transaction.jta.JtaTransactionManager" depends-on="userTransactionService">
+
+    <!-- JTA事务管理器 ： 基于TransactionManager和UserTransaction实现生成 -->
+    <bean id="jtaTransactionManager" class="org.springframework.transaction.jta.JtaTransactionManager"
+          depends-on="userTransactionService">
         <property name="transactionManager" ref="atomikosTransactionManager" />
         <property name="userTransaction" ref="atomikosUserTransaction" />
     </bean>
-    <bean id="atomikosTransactionManager" class="com.atomikos.icatch.jta.UserTransactionManager" init-method="init" destroy-method="close" depends-on="userTransactionService">
+    <!-- 定义TransactionManager实现类-->
+    <bean id="atomikosTransactionManager" class="com.atomikos.icatch.jta.UserTransactionManager"
+          init-method="init" destroy-method="close" depends-on="userTransactionService">
         <property name="forceShutdown" value="false" />
     </bean>
-    <bean id="atomikosUserTransaction" class="com.atomikos.icatch.jta.UserTransactionImp" depends-on="userTransactionService">
-        <property name="transactionTimeout" value="300" />
-    </bean>
-    <bean id="userTransactionService" class="com.atomikos.icatch.config.UserTransactionServiceImp" init-method="init" destroy-method="shutdownForce">
+    <!-- 定义UserTransaction服务实现类-->
+    <bean id="userTransactionService" class="com.atomikos.icatch.config.UserTransactionServiceImp"
+          init-method="init" destroy-method="shutdownForce">
         <constructor-arg>
             <props>
                 <prop key="com.atomikos.icatch.service">com.atomikos.icatch.standalone.UserTransactionServiceFactory</prop>
             </props>
         </constructor-arg>
     </bean>
+    <!-- 定义UserTransaction实现类-->
+    <bean id="atomikosUserTransaction" class="com.atomikos.icatch.jta.UserTransactionImp"
+          depends-on="userTransactionService">
+        <property name="transactionTimeout" value="300" />
+    </bean>
+
 </beans>
